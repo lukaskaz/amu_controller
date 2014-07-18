@@ -206,7 +206,7 @@ void AppTaskJoyControl(void *p_arg)
         }
 
         //printf("testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest ");
-        OSTimeDlyHMSM(0, 0, 0, 30, OS_OPT_TIME_PERIODIC, &os_err);
+        OSTimeDlyHMSM(0, 0, 0, 40, OS_OPT_TIME_PERIODIC, &os_err);
     }
 }
 

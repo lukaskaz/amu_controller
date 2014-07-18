@@ -25,13 +25,17 @@
 #include "mod_lcd.h"
 #include "stm32fxxx_it.h"
 
-#define RADIO_USART           USART6
-#define RADIO_FRAME_RES_SIZE  2U
-#define RADIO_FRAME_SIZE      16U
-#define RADIO_BYTES_FOR_CS    (RADIO_FRAME_SIZE - 1U)
-#define RADIO_PAYLOAD_SIZE    10U
+#define RADIO_USART                 USART6
+#define RADIO_FRAME_RES_SIZE        2U
+#define RADIO_FRAME_SIZE            16U
+#define RADIO_BYTES_FOR_CS          (RADIO_FRAME_SIZE - 1U)
+#define RADIO_PAYLOAD_SIZE          10U
 
-#define RADIO_UART_ADDRESS    5U
+#define RADIO_UART_ADDRESS          5U
+#define RADIO_UART_MASTER_ADDRESS   (0x100|RADIO_UART_ADDRESS)
+#define RADIO_UART_SLAVE_ADDRESS    (0x100|0x0A)
+
+#define RADIO_REPONSE_TIMEOUT_MS    1000U
 
 OS_Q opQueue;
 OS_TMR rfHeartbeatTimeout;
@@ -203,6 +207,9 @@ void AppTaskRadioControl(void *p_arg)
                     rfData->uart_payload.payload.function = opQueueElemPtr->funct;
                     rfData->uart_payload.payload.soundSignalData.soundSignalStatus = opQueueElemPtr->op;
                     break;
+                case RADIO_OP_HEARTBEAT:
+                    rfData->uart_payload.payload.function = opQueueElemPtr->funct;
+                    break;
                 default: { }
             }
 
@@ -263,6 +270,7 @@ static void AppTaskRadioControlInit(void)
     USART_ClearFlag(USART6,USART_FLAG_TC);
 
     BSP_IntVectSet(BSP_INT_ID_USART6, USART6_IRQHandler);
+    BSP_IntPrioSet(BSP_INT_ID_USART6, 3);
     BSP_IntEn(BSP_INT_ID_USART6);
 
     USART_Cmd(USART6, ENABLE);
@@ -296,21 +304,22 @@ static bool isRadioRxResponseFrameReady(void)
 
 void radio_frame_receive_handler(void)
 {
-    uint8_t data = USART_ReceiveData(RADIO_USART);
+    uint16_t data = USART_ReceiveData(RADIO_USART);
     
-    if(radioData.rxCell.frame.state == RADIO_FRAME_FREE) {
-        //ignore the first received byte (uart target address)
+    if(radioData.rxCell.frame.state == RADIO_FRAME_FREE && data == RADIO_UART_MASTER_ADDRESS) {
+        // ignore the first received byte (uart target address)
+        // and reset frame byte position
         radioData.rxCell.frame.state = RADIO_FRAME_RECEIVING;
+        radioData.rxFrameBytePos = 0;
     }
     else {
-        radioData.rxCell.iodata.byte[radioData.rxFrameBytePos] = data; 
+        radioData.rxCell.iodata.byte[radioData.rxFrameBytePos] = (uint8_t)data; 
         radioData.rxFrameBytePos++;
 
         if( (radioData.rxFrameBytePos == RADIO_FRAME_SIZE && radioData.rxCell.frame.type == RADIO_FRAME_NORMAL)      ||
             (radioData.rxFrameBytePos == RADIO_FRAME_RES_SIZE && radioData.rxCell.frame.type == RADIO_FRAME_RESPONSE) )
         {
             radioData.rxCell.frame.state = RADIO_FRAME_READY;
-            radioData.rxFrameBytePos = 0;
         }
     }
     
@@ -331,7 +340,7 @@ static void radio_frame_transmit_handler(radioFrame *output)
     response->frame.type = RADIO_FRAME_RESPONSE;
 
     USART_ClearFlag(RADIO_USART, USART_FLAG_TXE);
-    USART_SendData(RADIO_USART, 0x100|0x0A);
+    USART_SendData(RADIO_USART, RADIO_UART_SLAVE_ADDRESS);
     while(USART_GetFlagStatus(RADIO_USART, USART_FLAG_TXE) == RESET);
 
     for(i=0; i<RADIO_FRAME_SIZE; i++) {
@@ -347,13 +356,14 @@ static void radio_frame_transmit_handler(radioFrame *output)
     timeout = 0;
     while(isRadioRxResponseFrameReady() != true) {
         OSTimeDlyHMSM(0, 0, 0, 1, OS_OPT_TIME_PERIODIC, &err);
-        if(timeout++ >= 1000) {
+        if(timeout++ >= RADIO_REPONSE_TIMEOUT_MS) {
             printf("Radio response timeout reached!\r\n");
             break;
         }
     }
-    //printf("Res %d, %d, %d\n\r", response->uart_response.res, radioData.rxCell.frame.state, radioData.rxCell.frame.type);
+    printf("Res %d, %d, %d\n\r", response->uart_response.res, response->frame.state, response->frame.type);
 
+    // ToDo: resend packet to tlx9e5 if crc check error is reported
     if(response->uart_response.res == RADIO_RES_OPERATION_ERROR) {
             lcdQueueElem.opKind    = LCD_OP_CONN;
             lcdQueueElem.conn.ctrl = LCD_CTRL_NONE;

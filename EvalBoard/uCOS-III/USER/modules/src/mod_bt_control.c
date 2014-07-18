@@ -213,6 +213,7 @@ static void AppTaskBTControlInit(void)
     USART_ClearFlag(UART4,USART_FLAG_TC);
 
     BSP_IntVectSet(BSP_INT_ID_USART4, UART4_IRQHandler);
+    BSP_IntPrioSet(BSP_INT_ID_USART4, 4);
     BSP_IntEn(BSP_INT_ID_USART4);
 
     USART_Cmd(UART4, ENABLE);
