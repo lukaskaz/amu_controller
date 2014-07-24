@@ -259,8 +259,7 @@ void USART6_IRQHandler(void)
 void UART4_IRQHandler(void)
 {
     extern bool uartBTTransmissionDone;
-    extern bool uartBTMessageReady;
-
+ 
     if(USART_GetFlagStatus(UART4, USART_FLAG_TC) == SET) {
         USART_ClearFlag(UART4, USART_FLAG_TC);
         uartBTTransmissionDone = true;

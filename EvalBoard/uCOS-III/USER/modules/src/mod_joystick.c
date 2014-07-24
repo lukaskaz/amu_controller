@@ -25,6 +25,7 @@
 
 #include "mod_radio_control.h"
 #include "mod_lcd.h"
+#include "mod_auxiliary.h"
 
 
 #define ADC1_DR_ADDRESS          ((uint32_t)0x4001204C)
@@ -119,18 +120,20 @@ void AppTaskJoyControl(void *p_arg)
             lcdQueueElem.horn.state = LCD_HRN_ON;
         }
         else if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET) {
-            static uint8_t currentState = RADIO_LIGHTST_DISABLE;
-            while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET);
+            while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET) {
+                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+            }
 
             opQueueElem.funct = RADIO_OP_LIGHTING;
             opQueueElem.op = RADIO_LIGHTOP_LEFT;
-            if(currentState == RADIO_LIGHTST_DISABLE) {
+            if(lightCurrentState.lightLeftCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
+                lightCurrentState.lightLeftCurrState = RADIO_LIGHTST_ENABLE;
             }
             else {
                 opQueueElem.val_0 = RADIO_LIGHTST_DISABLE;
+                lightCurrentState.lightLeftCurrState = RADIO_LIGHTST_DISABLE;
             }
-            currentState = opQueueElem.val_0;
 
             lcdQueueElem.opKind     = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
@@ -138,18 +141,20 @@ void AppTaskJoyControl(void *p_arg)
             lcdQueueElem.light.state = opQueueElem.val_0;
         }
         else if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET) {
-            static uint8_t currentState = RADIO_LIGHTST_DISABLE;
-            while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET);
-            
+            while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET) {
+                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+            }
+
             opQueueElem.funct = RADIO_OP_LIGHTING;
             opQueueElem.op = RADIO_LIGHTOP_RIGHT;
-            if(currentState == RADIO_LIGHTST_DISABLE) {
+            if(lightCurrentState.lightRightCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
+                lightCurrentState.lightRightCurrState = RADIO_LIGHTST_ENABLE;
             }
             else {
                 opQueueElem.val_0 = RADIO_LIGHTST_DISABLE;
+                lightCurrentState.lightRightCurrState = RADIO_LIGHTST_DISABLE;
             }
-            currentState = opQueueElem.val_0;
             
             lcdQueueElem.opKind     = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
@@ -157,18 +162,20 @@ void AppTaskJoyControl(void *p_arg)
             lcdQueueElem.light.state = opQueueElem.val_0;
         }
         else if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET) {
-            static uint8_t currentState = RADIO_LIGHTST_DISABLE;
-            while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET);
-            
+            while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET) {
+                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+            }
+
             opQueueElem.funct = RADIO_OP_LIGHTING;
             opQueueElem.op = RADIO_LIGHTOP_INNER;
-            if(currentState == RADIO_LIGHTST_DISABLE) {
+            if(lightCurrentState.lightInnerCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
+                lightCurrentState.lightInnerCurrState = RADIO_LIGHTST_ENABLE;
             }
             else {
                 opQueueElem.val_0 = RADIO_LIGHTST_DISABLE;
+                lightCurrentState.lightInnerCurrState = RADIO_LIGHTST_DISABLE;
             }
-            currentState = opQueueElem.val_0;
 
             lcdQueueElem.opKind     = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
@@ -176,19 +183,21 @@ void AppTaskJoyControl(void *p_arg)
             lcdQueueElem.light.state = opQueueElem.val_0;
         }
         else if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET) {
-            static uint8_t currentState = RADIO_LIGHTST_DISABLE;
-            while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET);
+            while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET) {
+                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+            }
             
             opQueueElem.funct = RADIO_OP_LIGHTING;
             opQueueElem.op = RADIO_LIGHTOP_OUTER;
-            if(currentState == RADIO_LIGHTST_DISABLE) {
+            if(lightCurrentState.lightOuterCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
+                lightCurrentState.lightOuterCurrState = RADIO_LIGHTST_ENABLE;
             }
             else {
                 opQueueElem.val_0 = RADIO_LIGHTST_DISABLE;
+                lightCurrentState.lightOuterCurrState = RADIO_LIGHTST_DISABLE;
             }
-            currentState = opQueueElem.val_0;
-            
+
             lcdQueueElem.opKind     = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.light.type = LCD_LIG_OUTER;
@@ -206,7 +215,7 @@ void AppTaskJoyControl(void *p_arg)
         }
 
         //printf("testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest ");
-        OSTimeDlyHMSM(0, 0, 0, 40, OS_OPT_TIME_PERIODIC, &os_err);
+        OSTimeDlyHMSM(0, 0, 0, 30, OS_OPT_TIME_PERIODIC, &os_err);
     }
 }
 

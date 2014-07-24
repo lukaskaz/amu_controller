@@ -361,7 +361,7 @@ static void radio_frame_transmit_handler(radioFrame *output)
             break;
         }
     }
-    printf("Res %d, %d, %d\n\r", response->uart_response.res, response->frame.state, response->frame.type);
+    //printf("Res %d, %d, %d\n\r", response->uart_response.res, response->frame.state, response->frame.type);
 
     // ToDo: resend packet to tlx9e5 if crc check error is reported
     if(response->uart_response.res == RADIO_RES_OPERATION_ERROR) {
