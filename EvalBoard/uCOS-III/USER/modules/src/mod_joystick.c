@@ -30,7 +30,6 @@
 
 #define ADC1_DR_ADDRESS          ((uint32_t)0x4001204C)
 
-#define MAX_VELOCITY_VALUE       100U
 #define MAX_ADC_RES_VALUE        4000U
 #define HALF_ADC_RES_VALUE       2000U
 
@@ -55,6 +54,7 @@ void AppTaskJoyControl(void *p_arg)
         uint16_t vertMovementFactor = 100U*ADCConvertedValue[0]/MAX_ADC_RES_VALUE;
         uint16_t horiMovementFactor = 100U*ADCConvertedValue[1]/MAX_ADC_RES_VALUE;
 
+        opQueueElem.ctrl = RADIO_CTRL_JOYSTICK;
         if(vertMovementFactor < 45U) {
             uint8_t speedFwd = MAX_VELOCITY_VALUE - (100U * ADCConvertedValue[0] / HALF_ADC_RES_VALUE);
 
@@ -215,7 +215,7 @@ void AppTaskJoyControl(void *p_arg)
         }
 
         //printf("testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest ");
-        OSTimeDlyHMSM(0, 0, 0, 30, OS_OPT_TIME_PERIODIC, &os_err);
+        OSTimeDlyHMSM(0, 0, 0, 20, OS_OPT_TIME_PERIODIC, &os_err);
     }
 }
 

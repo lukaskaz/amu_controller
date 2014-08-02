@@ -9,6 +9,8 @@
 
 #include <stdint.h>
 
+#define MAX_VELOCITY_VALUE       100U
+
 typedef struct {
     uint8_t lightLeftCurrState;
     uint8_t lightRightCurrState;

@@ -29,6 +29,23 @@
 
 #define BT_INIT_MESSSAGE_TIMEOUT_MAX     100U
 #define BT_MESSSAGE_TIMEOUT_MAX          1U
+#define BT_VELOCITY_TEXT_SIZE            15U
+
+typedef enum {
+    BT_OP_LOWER_LIMIT_SIGN = 'a',
+    BT_OP_MV_FORWARD       = 'w',
+    BT_OP_MV_BACKWARD      = 's',
+    BT_OP_MV_LEFT          = 'a',
+    BT_OP_MV_RIGHT         = 'd',
+    BT_OP_SPD_UP           = 'q',
+    BT_OP_SPD_DOWN         = 'e',
+    BT_OP_SD_HORN          = 'h',
+    BT_OP_LGT_LEFT         = 'i',
+    BT_OP_LGT_RIGHT        = 'p',
+    BT_OP_LGT_INNER        = 'o',
+    BT_OP_LGT_OUTER        = 'l',
+    BT_OP_UPPER_LIMIT_SIGN = 'z',
+} btOperation_t;
 
 volatile bool uartBTTransmissionDone = false;
 volatile bool uartBTMessageReady = false;
@@ -43,11 +60,10 @@ static bool bt_message_reveive_wait_ready(uint8_t cnt, uint32_t timeout);
 void AppTaskBTControl(void *p_arg)
 {
     OS_ERR os_err;
-    static uint32_t velocity = 0;
+    static char velocityText[BT_VELOCITY_TEXT_SIZE+1] = {0};
+    static int32_t velocity = 0;
     bool isBTDataFlowActive = false;
-    bool isSoundSignalActive = false;
 
-    (void)p_arg;
     AppTaskBTControlInit();
     AppTaskBTDeviceInit();
 
@@ -71,35 +87,56 @@ void AppTaskBTControl(void *p_arg)
                 printf("%s\r\n", BTMessageStruct.BTBuffer);
             }
         }
-        else if(isBTDataFlowActive == true) {
+        else if(isBTDataFlowActive == true && BTMessageStruct.BTBufferElemNb != 0) {
             opQueueElem_t opQueueElem = {0};
-            uint8_t btByte = BTMessageStruct.BTBuffer[0];
-            
-            if(BTMessageStruct.BTBufferElemNb == 1 && btByte >= 'a' && btByte <= 'z') {
-                switch(btByte) {
-                    case 'w':
+            btOperation_t btOperation = (btOperation_t)BTMessageStruct.BTBuffer[0];
+
+            if(btOperation >= BT_OP_LOWER_LIMIT_SIGN && btOperation <= BT_OP_UPPER_LIMIT_SIGN) {
+                opQueueElem.ctrl = RADIO_CTRL_BLUETOOTH;
+                switch(btOperation) {
+                    case BT_OP_MV_FORWARD:
                         opQueueElem.funct = RADIO_OP_DRIVE;
                         opQueueElem.op    = RADIO_DRVOP_FORWARD;
                         opQueueElem.val_0 = velocity;
                         opQueueElem.val_1 = velocity;
                         break;
-                    case 's':
+                    case BT_OP_MV_BACKWARD:
                         opQueueElem.funct = RADIO_OP_DRIVE;
                         opQueueElem.op = RADIO_DRVOP_BACKWARD;
                         opQueueElem.val_0 = velocity;
                         opQueueElem.val_1 = velocity;
                         break;
-                    case 'a':
+                    case BT_OP_MV_LEFT:
                         opQueueElem.funct = RADIO_OP_DRIVE;
                         opQueueElem.op = RADIO_DRVOP_LEFT;
-                        opQueueElem.val_0 = velocity;
+                        opQueueElem.val_0 = MAX_VELOCITY_VALUE;
+                        opQueueElem.val_1 = 0;
                         break;
-                    case 'd':
+                    case BT_OP_MV_RIGHT:
                         opQueueElem.funct = RADIO_OP_DRIVE;
                         opQueueElem.op = RADIO_DRVOP_RIGHT;
-                        opQueueElem.val_1 = velocity;
+                        opQueueElem.val_0 = 0;
+                        opQueueElem.val_1 = MAX_VELOCITY_VALUE;
                         break;
-                    case 'i':
+                    case BT_OP_SPD_UP:
+                        velocity += 10U;
+                        if(velocity > 100U) {
+                            velocity = 100U;
+                        }
+
+                        snprintf(velocityText, BT_VELOCITY_TEXT_SIZE, "Speed: %d\r\n", velocity);
+                        bt_message_transfer_handler(velocityText);
+                        break;
+                    case BT_OP_SPD_DOWN:
+                        velocity -= 10U;
+                        if(velocity < 0) {
+                            velocity = 0;
+                        }
+
+                        snprintf(velocityText, BT_VELOCITY_TEXT_SIZE, "Speed: %d\r\n", velocity);
+                        bt_message_transfer_handler(velocityText);
+                        break;
+                    case BT_OP_LGT_LEFT:
                         opQueueElem.funct = RADIO_OP_LIGHTING;
                         opQueueElem.op = RADIO_LIGHTOP_LEFT;
                         if(lightCurrentState.lightLeftCurrState == RADIO_LIGHTST_DISABLE) {
@@ -111,7 +148,7 @@ void AppTaskBTControl(void *p_arg)
                             lightCurrentState.lightLeftCurrState = RADIO_LIGHTST_DISABLE;
                         }
                         break;
-                    case 'p':
+                    case BT_OP_LGT_RIGHT:
                         opQueueElem.funct = RADIO_OP_LIGHTING;
                         opQueueElem.op = RADIO_LIGHTOP_RIGHT;
                         if(lightCurrentState.lightRightCurrState == RADIO_LIGHTST_DISABLE) {
@@ -123,7 +160,7 @@ void AppTaskBTControl(void *p_arg)
                             lightCurrentState.lightRightCurrState = RADIO_LIGHTST_DISABLE;
                         }
                         break;
-                    case 'o':
+                    case BT_OP_LGT_INNER:
                         opQueueElem.funct = RADIO_OP_LIGHTING;
                         opQueueElem.op = RADIO_LIGHTOP_INNER;
                         if(lightCurrentState.lightInnerCurrState == RADIO_LIGHTST_DISABLE) {
@@ -135,7 +172,7 @@ void AppTaskBTControl(void *p_arg)
                             lightCurrentState.lightInnerCurrState = RADIO_LIGHTST_DISABLE;
                         }
                         break;
-                    case 'l':
+                    case BT_OP_LGT_OUTER:
                         opQueueElem.funct = RADIO_OP_LIGHTING;
                         opQueueElem.op = RADIO_LIGHTOP_OUTER;
                         if(lightCurrentState.lightOuterCurrState == RADIO_LIGHTST_DISABLE) {
@@ -147,34 +184,18 @@ void AppTaskBTControl(void *p_arg)
                             lightCurrentState.lightOuterCurrState = RADIO_LIGHTST_DISABLE;
                         }
                         break;
-                    case 'h':
-                        if(isSoundSignalActive == false) {
-                            isSoundSignalActive = true;
-                            bt_message_transfer_handler("Horn on\r");
-                        }
-                        else {
-                            bt_message_transfer_handler("Horn off\r");
-                            isSoundSignalActive = false;
-                        }
+                    case BT_OP_SD_HORN:
+                        opQueueElem.funct = RADIO_OP_SOUND_SIG;
+                        opQueueElem.op = RADIO_SIGOP_ON;
                         break;
                     default: {}
                 }
 
                 BTMessageStruct.BTBufferElemNb = 0;
-            }
-            else if(BTMessageStruct.BTBufferElemNb >= 1 && btByte >= '0' && btByte <= '9') {
-                velocity = (btByte - '0') * 10U + 10U;
-                BTMessageStruct.BTBufferElemNb = 0;
 
-                printf("velocity: %d\r\n", velocity);
-            }
-            else if(isSoundSignalActive == true) {
-                opQueueElem.funct = RADIO_OP_SOUND_SIG;
-                opQueueElem.op = 1;
-            }
-            
-            if(opQueueElem.funct != RADIO_OP_UNDEF) {
-                send_to_op_queue(&opQueueElem);
+                if(opQueueElem.funct != RADIO_OP_UNDEF) {
+                    send_to_op_queue(&opQueueElem);
+                }
             }
         }
         
@@ -204,18 +225,21 @@ void AppTaskBTDeviceInit(void)
 
         if(strncmp("OK", (char *)&BTMessageStruct.BTBuffer, 2U) == 0) {
             printf("\r\nBT connection is on, trying to disconnect\r\n");
+            BTMessageStruct.BTBuffer[0] = '\0';
             BTMessageStruct.BTBufferElemNb = 0;
             isBTConnectionOn = true;
             break;
         }
         else if (strncmp("+++ERROR", (char *)&BTMessageStruct.BTBuffer, 8U) == 0){
             printf("\r\nBT connection is already off!\r\n");
+            BTMessageStruct.BTBuffer[0] = '\0';
             BTMessageStruct.BTBufferElemNb = 0;
             break;
         }
         else {
             printf("\r\nSet to command mode unssuported case, retrying!\r\n");
             printf("%s", BTMessageStruct.BTBuffer);
+            BTMessageStruct.BTBuffer[0] = '\0';
             BTMessageStruct.BTBufferElemNb = 0;
         }
         OSTimeDlyHMSM(0, 0, 0, 100, OS_OPT_TIME_PERIODIC, &os_err);
@@ -233,12 +257,14 @@ void AppTaskBTDeviceInit(void)
             if(strncmp("ATH", (char *)&BTMessageStruct.BTBuffer, 3U) == 0  &&
                strncmp("OK", (char *)&BTMessageStruct.BTBuffer[3], 2U) == 0) {
                 printf("\r\nPending connection interrupted\r\n");
+                BTMessageStruct.BTBuffer[0] = '\0';
                 BTMessageStruct.BTBufferElemNb = 0;
                 break;
             }
             else {
                 printf("\r\nCannot interrupt connection, retrying!\r\n");
                 printf("%s", BTMessageStruct.BTBuffer);
+                BTMessageStruct.BTBuffer[0] = '\0';
                 BTMessageStruct.BTBufferElemNb = 0;
             }
             OSTimeDlyHMSM(0, 0, 0, 100, OS_OPT_TIME_PERIODIC, &os_err);
@@ -254,12 +280,14 @@ void AppTaskBTDeviceInit(void)
         if(strncmp("ATZ0", (char *)&BTMessageStruct.BTBuffer, 4U) == 0  &&
            strncmp("OK", (char *)&BTMessageStruct.BTBuffer[4], 2U) == 0) {
             printf("\r\nDefault settings restored, rebooting\r\n");
+            BTMessageStruct.BTBuffer[0] = '\0';
             BTMessageStruct.BTBufferElemNb = 0;
             break;
         }
         else {
             printf("\r\nCannot restore default settings, retrying!\r\n");
             printf("%s", BTMessageStruct.BTBuffer);
+            BTMessageStruct.BTBuffer[0] = '\0';
             BTMessageStruct.BTBufferElemNb = 0;
         }
         OSTimeDlyHMSM(0, 0, 0, 100, OS_OPT_TIME_PERIODIC, &os_err);
@@ -275,6 +303,7 @@ void AppTaskBTDeviceInit(void)
         if(strncmp("ATR1", (char *)&BTMessageStruct.BTBuffer, 4U) == 0  &&
            strncmp("OK", (char *)&BTMessageStruct.BTBuffer[4], 2U) == 0) {
             printf("\r\nDevice in slave role\r\n");
+            BTMessageStruct.BTBuffer[0] = '\0';
             BTMessageStruct.BTBufferElemNb = 0;
             break;
             
@@ -282,12 +311,37 @@ void AppTaskBTDeviceInit(void)
         else {
             printf("\r\nCannot set device to slave role, retrying!\r\n");
             printf("%s", BTMessageStruct.BTBuffer);
+            BTMessageStruct.BTBuffer[0] = '\0';
             BTMessageStruct.BTBufferElemNb = 0;
         }
         
         OSTimeDlyHMSM(0, 0, 0, 500, OS_OPT_TIME_PERIODIC, &os_err);
     }
     
+    while(1) {
+        bt_message_transfer_handler("ATH0\r");
+
+        //wait for two messages from btm222: echo and confirmation
+        bt_message_reveive_wait_ready(2, BT_INIT_MESSSAGE_TIMEOUT_MAX);
+
+        if(strncmp("ATH0", (char *)&BTMessageStruct.BTBuffer, 4U) == 0  &&
+           strncmp("OK", (char *)&BTMessageStruct.BTBuffer[4], 2U) == 0) {
+            printf("\r\nUndiscoverable mode enabled\r\n");
+            BTMessageStruct.BTBuffer[0] = '\0';
+            BTMessageStruct.BTBufferElemNb = 0;
+            break;
+            
+        }
+        else {
+            printf("\r\nCannot enter undiscoverable mode, retrying!\r\n");
+            printf("%s", BTMessageStruct.BTBuffer);
+            BTMessageStruct.BTBuffer[0] = '\0';
+            BTMessageStruct.BTBufferElemNb = 0;
+        }
+        
+        OSTimeDlyHMSM(0, 0, 0, 100, OS_OPT_TIME_PERIODIC, &os_err);
+    }
+
 }
 
 static void AppTaskBTControlInit(void)

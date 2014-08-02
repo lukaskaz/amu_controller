@@ -114,17 +114,20 @@ typedef union
             } plainData;
             struct {
                 uint8_t function;
+                uint8_t controller;
                 uint8_t direction;
                 uint8_t speed_0;
                 uint8_t speed_1;
             } driveData;
             struct {
                 uint8_t function;
+                uint8_t controller;
                 uint8_t lightingType;
                 uint8_t lightingState;
             } lightingData;
             struct {
                 uint8_t function;
+                uint8_t controller;
                 uint8_t soundSignalStatus;
             } soundSignalData;
         } payload;
@@ -194,17 +197,20 @@ void AppTaskRadioControl(void *p_arg)
             {
                 case RADIO_OP_DRIVE:
                     rfData->uart_payload.payload.function = opQueueElemPtr->funct;
-                    rfData->uart_payload.payload.driveData.direction = opQueueElemPtr->op;
-                    rfData->uart_payload.payload.driveData.speed_0   = opQueueElemPtr->val_0;
-                    rfData->uart_payload.payload.driveData.speed_1   = opQueueElemPtr->val_1;
+                    rfData->uart_payload.payload.driveData.controller = opQueueElemPtr->ctrl;
+                    rfData->uart_payload.payload.driveData.direction  = opQueueElemPtr->op;
+                    rfData->uart_payload.payload.driveData.speed_0    = opQueueElemPtr->val_0;
+                    rfData->uart_payload.payload.driveData.speed_1    = opQueueElemPtr->val_1;
                     break;
                 case RADIO_OP_LIGHTING:
                     rfData->uart_payload.payload.function = opQueueElemPtr->funct;
+                    rfData->uart_payload.payload.lightingData.controller = opQueueElemPtr->ctrl;
                     rfData->uart_payload.payload.lightingData.lightingType = opQueueElemPtr->op;
                     rfData->uart_payload.payload.lightingData.lightingState = opQueueElemPtr->val_0;
                     break;
                 case RADIO_OP_SOUND_SIG:
                     rfData->uart_payload.payload.function = opQueueElemPtr->funct;
+                    rfData->uart_payload.payload.soundSignalData.controller = opQueueElemPtr->ctrl;
                     rfData->uart_payload.payload.soundSignalData.soundSignalStatus = opQueueElemPtr->op;
                     break;
                 case RADIO_OP_HEARTBEAT:
@@ -227,8 +233,6 @@ void AppTaskRadioControl(void *p_arg)
                 }
             }
         }
-
-        OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
     }
 }
 
@@ -322,7 +326,6 @@ void radio_frame_receive_handler(void)
             radioData.rxCell.frame.state = RADIO_FRAME_READY;
         }
     }
-    
 }
 
 static void radio_frame_transmit_handler(radioFrame *output)
@@ -330,11 +333,21 @@ static void radio_frame_transmit_handler(radioFrame *output)
     OS_ERR err;
     uint8_t i = 0;
     uint32_t timeout = 0;
+    uint32_t radioTransferInterval = 0;
+    static uint32_t prevTimestamp = 0, timestamp = 0;
     lcdQueueElem_t lcdQueueElem = {0};
     radioFrame *response = &radioData.rxCell;
 
     output->uart_payload.checksum = radio_data_checksum_calculate(output);
     while(is_radio_frame_receiving() == true);
+
+    radioTransferInterval = OSTimeGet(&err) - prevTimestamp;
+    if(radioTransferInterval < 1) {
+        // min 1ms of radio silence gap should occur between transfers
+        OSTimeDlyHMSM(0, 0, 0, 1, OS_OPT_TIME_PERIODIC, &err);
+    }
+    printf("radio tx interval: %d / %d\r\n", radioTransferInterval, OSTimeGet(&err) - timestamp);
+    timestamp = OSTimeGet(&err);
 
     // response may come during uart sending, be prepare for that
     response->frame.type = RADIO_FRAME_RESPONSE;
@@ -361,7 +374,7 @@ static void radio_frame_transmit_handler(radioFrame *output)
             break;
         }
     }
-    //printf("Res %d, %d, %d\n\r", response->uart_response.res, response->frame.state, response->frame.type);
+    printf("Res %d, %d, %d\n\r", response->uart_response.res, response->frame.state, response->frame.type);
 
     // ToDo: resend packet to tlx9e5 if crc check error is reported
     if(response->uart_response.res == RADIO_RES_OPERATION_ERROR) {
@@ -374,8 +387,9 @@ static void radio_frame_transmit_handler(radioFrame *output)
             lcdQueueElem.conn.ctrl = LCD_CTRL_NONE;
             lcdQueueElem.conn.state = LCD_CONN_ONLINE;
     }
-
     send_to_lcd_queue(&lcdQueueElem);
+
+    prevTimestamp = OSTimeGet(&err);
 }
 
 static bool is_radio_frame_receiving(void)
@@ -420,8 +434,11 @@ opQueueElem_t *receive_from_op_queue(void)
     static OS_ERR os_err;
     static OS_MSG_SIZE msg_size;
     
-    opQueueElem_t *opQueueElemPtr = OSQPend(&opQueue, 0, OS_OPT_PEND_NON_BLOCKING, &msg_size, NULL, &os_err);
+    opQueueElem_t *opQueueElemPtr = OSQPend(&opQueue, 10, OS_OPT_PEND_BLOCKING, &msg_size, NULL, &os_err);
     //opQueueStruct.queueElemNb--;
+    if(os_err == OS_ERR_TIMEOUT) {
+        opQueueElemPtr = NULL;
+    }
 
     return opQueueElemPtr;
 }

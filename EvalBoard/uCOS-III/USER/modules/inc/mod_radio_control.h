@@ -50,8 +50,16 @@ typedef enum {
     RADIO_SIGOP_ON,
 } SignalOperation_t;
 
+typedef enum {
+    RADIO_CTRL_NONE = 0,
+    RADIO_CTRL_CONSOLE,
+    RADIO_CTRL_JOYSTICK,
+    RADIO_CTRL_BLUETOOTH,
+} RadioController_t;
+
 typedef struct {
     uint8_t funct;
+    uint8_t ctrl;
     uint8_t op;
     uint8_t val_0;
     uint8_t val_1;
