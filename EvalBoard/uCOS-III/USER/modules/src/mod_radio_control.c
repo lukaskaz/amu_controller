@@ -257,7 +257,7 @@ static void AppTaskRadioControlInit(void)
     GPIO_Init(GPIOC, &GPIO_InitStructure);
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_USART6);
 
-    USART_InitStructure.USART_BaudRate   = 57600;
+    USART_InitStructure.USART_BaudRate   = 125000;
     USART_InitStructure.USART_WordLength = USART_WordLength_9b;
     USART_InitStructure.USART_StopBits   = USART_StopBits_1;
     USART_InitStructure.USART_Parity     = USART_Parity_No;
@@ -309,7 +309,7 @@ static bool isRadioRxResponseFrameReady(void)
 void radio_frame_receive_handler(void)
 {
     uint16_t data = USART_ReceiveData(RADIO_USART);
-    
+    printf("data: %d\r\n", data);
     if(radioData.rxCell.frame.state == RADIO_FRAME_FREE && data == RADIO_UART_MASTER_ADDRESS) {
         // ignore the first received byte (uart target address)
         // and reset frame byte position
@@ -331,7 +331,7 @@ void radio_frame_receive_handler(void)
 static void radio_frame_transmit_handler(radioFrame *output)
 {
     OS_ERR err;
-    uint8_t i = 0;
+    uint32_t i = 0;
     uint32_t timeout = 0;
     uint32_t radioTransferInterval = 0;
     static uint32_t prevTimestamp = 0, timestamp = 0;
@@ -344,13 +344,16 @@ static void radio_frame_transmit_handler(radioFrame *output)
     radioTransferInterval = OSTimeGet(&err) - prevTimestamp;
     if(radioTransferInterval < 1) {
         // min 1ms of radio silence gap should occur between transfers
-        OSTimeDlyHMSM(0, 0, 0, 1, OS_OPT_TIME_PERIODIC, &err);
+        //for(i=0; i<1000; i++);
     }
     printf("radio tx interval: %d / %d\r\n", radioTransferInterval, OSTimeGet(&err) - timestamp);
     timestamp = OSTimeGet(&err);
 
     // response may come during uart sending, be prepare for that
     response->frame.type = RADIO_FRAME_RESPONSE;
+    response->frame.state = RADIO_FRAME_FREE;
+    response->uart_response.res = RADIO_RES_TRANSFER_ERROR;
+
 
     USART_ClearFlag(RADIO_USART, USART_FLAG_TXE);
     USART_SendData(RADIO_USART, RADIO_UART_SLAVE_ADDRESS);
@@ -374,8 +377,10 @@ static void radio_frame_transmit_handler(radioFrame *output)
             break;
         }
     }
+    // min 1ms silence gap for TLX9E5 communication flow
+    OSTimeDlyHMSM(0, 0, 0, 1, OS_OPT_TIME_PERIODIC, &err);
     printf("Res %d, %d, %d\n\r", response->uart_response.res, response->frame.state, response->frame.type);
-
+    printf("radio tx duration: %d\r\n", OSTimeGet(&err) - timestamp);
     // ToDo: resend packet to tlx9e5 if crc check error is reported
     if(response->uart_response.res == RADIO_RES_OPERATION_ERROR) {
             lcdQueueElem.opKind    = LCD_OP_CONN;

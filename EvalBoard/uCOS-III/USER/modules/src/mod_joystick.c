@@ -121,7 +121,7 @@ void AppTaskJoyControl(void *p_arg)
         }
         else if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET) {
             while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
             }
 
             opQueueElem.funct = RADIO_OP_LIGHTING;
@@ -142,7 +142,7 @@ void AppTaskJoyControl(void *p_arg)
         }
         else if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET) {
             while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
             }
 
             opQueueElem.funct = RADIO_OP_LIGHTING;
@@ -163,7 +163,7 @@ void AppTaskJoyControl(void *p_arg)
         }
         else if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET) {
             while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
             }
 
             opQueueElem.funct = RADIO_OP_LIGHTING;
@@ -184,7 +184,7 @@ void AppTaskJoyControl(void *p_arg)
         }
         else if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET) {
             while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 10, OS_OPT_TIME_PERIODIC, &os_err);
+                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
             }
             
             opQueueElem.funct = RADIO_OP_LIGHTING;
