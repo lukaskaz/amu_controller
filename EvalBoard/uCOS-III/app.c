@@ -333,7 +333,6 @@ static void AppTaskLedBlinkingInit(void)
     GPIO_InitStruct.GPIO_OType=GPIO_OType_PP;
     GPIO_InitStruct.GPIO_PuPd=GPIO_PuPd_UP;
     GPIO_Init(GPIOF,&GPIO_InitStruct);
-
 }
 
 

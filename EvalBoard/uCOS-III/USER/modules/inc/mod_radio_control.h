@@ -12,7 +12,7 @@
 #define OP_QUEUE_SIZE       10U
 
 typedef enum {
-    RADIO_OP_UNDEF = 0,
+    RADIO_OP_NONE = 0,
     RADIO_OP_DRIVE,
     RADIO_OP_LIGHTING,
     RADIO_OP_SOUND_SIG,
@@ -58,9 +58,9 @@ typedef enum {
 } RadioController_t;
 
 typedef struct {
-    uint8_t funct;
+    uint8_t operation;
     uint8_t ctrl;
-    uint8_t op;
+    uint8_t opAction;
     uint8_t val_0;
     uint8_t val_1;
 } opQueueElem_t;
@@ -76,8 +76,8 @@ extern opQueueStruct_t opQueueStruct;
 extern void AppTaskRadioControl(void *p_arg);
 extern void radio_frame_receive_handler(void);
 
-extern void send_to_op_queue(const opQueueElem_t *opQueueElemPtr);
-extern opQueueElem_t *receive_from_op_queue(void);
-extern void flush_op_queue(void);
+extern void send_to_radio_queue(const opQueueElem_t *opQueueElemPtr);
+extern opQueueElem_t *receive_from_radio_queue(void);
+extern void flush_radio_queue(void);
 
 #endif

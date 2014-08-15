@@ -108,32 +108,32 @@ typedef union
         uint8_t payload_bytes_nb;
 
         union {
-            uint8_t function;
+            uint8_t operation;
             struct {
                 uint8_t data[RADIO_PAYLOAD_SIZE];
             } plainData;
             struct {
-                uint8_t function;
+                uint8_t operation;
                 uint8_t controller;
                 uint8_t direction;
                 uint8_t speed_0;
                 uint8_t speed_1;
             } driveData;
             struct {
-                uint8_t function;
+                uint8_t operation;
                 uint8_t controller;
                 uint8_t lightingType;
                 uint8_t lightingState;
             } lightingData;
             struct {
-                uint8_t function;
+                uint8_t operation;
                 uint8_t controller;
                 uint8_t soundSignalStatus;
             } soundSignalData;
         } payload;
         
         uint8_t checksum;
-    }uart_payload;
+    }uart_frame;
 
     struct
     {
@@ -175,46 +175,46 @@ void AppTaskRadioControl(void *p_arg)
 
     AppTaskRadioControlInit();
 
-    rfData->uart_payload.frame_type        = RADIO_FRAME_NORMAL;
-    rfData->uart_payload.uart_sender_addr  = RADIO_UART_ADDRESS;
-    rfData->uart_payload.function          = RADIO_FUNC_SEND;
-    rfData->uart_payload.radio_target_addr = RADIO_ADDR_NODE_1;
-    rfData->uart_payload.payload_bytes_nb  = RADIO_PAYLOAD_SIZE;
+    rfData->uart_frame.frame_type        = RADIO_FRAME_NORMAL;
+    rfData->uart_frame.uart_sender_addr  = RADIO_UART_ADDRESS;
+    rfData->uart_frame.function          = RADIO_FUNC_SEND;
+    rfData->uart_frame.radio_target_addr = RADIO_ADDR_NODE_1;
+    rfData->uart_frame.payload_bytes_nb  = RADIO_PAYLOAD_SIZE;
 
     OSTmrCreate(&rfHeartbeatTimeout, "Heartbeat timeout", 0, 5, OS_OPT_TMR_PERIODIC, rfHeartbeatCallback, 0, &os_err);
     OSTmrStart((OS_TMR *)&rfHeartbeatTimeout, &os_err);
     while(1) {
-        opQueueElemPtr = receive_from_op_queue();
+        opQueueElemPtr = receive_from_radio_queue();
 
         if(opQueueElemPtr != NULL) {
             OSTmrStart((OS_TMR *)&rfHeartbeatTimeout, &os_err);
-            
-            for(i=5; i<RADIO_FRAME_SIZE-1; i++) {
+
+            for(i=5; i<RADIO_FRAME_SIZE; i++) {
                 rfData->iodata.byte[i] = 0x00;
             }
 
-            switch(opQueueElemPtr->funct) 
+            switch(opQueueElemPtr->operation) 
             {
                 case RADIO_OP_DRIVE:
-                    rfData->uart_payload.payload.function = opQueueElemPtr->funct;
-                    rfData->uart_payload.payload.driveData.controller = opQueueElemPtr->ctrl;
-                    rfData->uart_payload.payload.driveData.direction  = opQueueElemPtr->op;
-                    rfData->uart_payload.payload.driveData.speed_0    = opQueueElemPtr->val_0;
-                    rfData->uart_payload.payload.driveData.speed_1    = opQueueElemPtr->val_1;
+                    rfData->uart_frame.payload.operation = opQueueElemPtr->operation;
+                    rfData->uart_frame.payload.driveData.controller = opQueueElemPtr->ctrl;
+                    rfData->uart_frame.payload.driveData.direction  = opQueueElemPtr->opAction;
+                    rfData->uart_frame.payload.driveData.speed_0    = opQueueElemPtr->val_0;
+                    rfData->uart_frame.payload.driveData.speed_1    = opQueueElemPtr->val_1;
                     break;
                 case RADIO_OP_LIGHTING:
-                    rfData->uart_payload.payload.function = opQueueElemPtr->funct;
-                    rfData->uart_payload.payload.lightingData.controller = opQueueElemPtr->ctrl;
-                    rfData->uart_payload.payload.lightingData.lightingType = opQueueElemPtr->op;
-                    rfData->uart_payload.payload.lightingData.lightingState = opQueueElemPtr->val_0;
+                    rfData->uart_frame.payload.operation = opQueueElemPtr->operation;
+                    rfData->uart_frame.payload.lightingData.controller = opQueueElemPtr->ctrl;
+                    rfData->uart_frame.payload.lightingData.lightingType = opQueueElemPtr->opAction;
+                    rfData->uart_frame.payload.lightingData.lightingState = opQueueElemPtr->val_0;
                     break;
                 case RADIO_OP_SOUND_SIG:
-                    rfData->uart_payload.payload.function = opQueueElemPtr->funct;
-                    rfData->uart_payload.payload.soundSignalData.controller = opQueueElemPtr->ctrl;
-                    rfData->uart_payload.payload.soundSignalData.soundSignalStatus = opQueueElemPtr->op;
+                    rfData->uart_frame.payload.operation = opQueueElemPtr->operation;
+                    rfData->uart_frame.payload.soundSignalData.controller = opQueueElemPtr->ctrl;
+                    rfData->uart_frame.payload.soundSignalData.soundSignalStatus = opQueueElemPtr->opAction;
                     break;
                 case RADIO_OP_HEARTBEAT:
-                    rfData->uart_payload.payload.function = opQueueElemPtr->funct;
+                    rfData->uart_frame.payload.operation = opQueueElemPtr->operation;
                     break;
                 default: { }
             }
@@ -228,8 +228,8 @@ void AppTaskRadioControl(void *p_arg)
                 if(scrSaverStarted == false) {
                     opQueueElem_t opQueueElem   = {0};
                     // heartbeat messages are sustained only when SS is disabled
-                    opQueueElem.funct = RADIO_OP_HEARTBEAT;
-                    send_to_op_queue(&opQueueElem);
+                    opQueueElem.operation = RADIO_OP_HEARTBEAT;
+                    send_to_radio_queue(&opQueueElem);
                 }
             }
         }
@@ -338,7 +338,7 @@ static void radio_frame_transmit_handler(radioFrame *output)
     lcdQueueElem_t lcdQueueElem = {0};
     radioFrame *response = &radioData.rxCell;
 
-    output->uart_payload.checksum = radio_data_checksum_calculate(output);
+    output->uart_frame.checksum = radio_data_checksum_calculate(output);
     while(is_radio_frame_receiving() == true);
 
     radioTransferInterval = OSTimeGet(&err) - prevTimestamp;
@@ -383,12 +383,12 @@ static void radio_frame_transmit_handler(radioFrame *output)
     printf("radio tx duration: %d\r\n", OSTimeGet(&err) - timestamp);
     // ToDo: resend packet to tlx9e5 if crc check error is reported
     if(response->uart_response.res == RADIO_RES_OPERATION_ERROR) {
-            lcdQueueElem.opKind    = LCD_OP_CONN;
+            lcdQueueElem.operation = LCD_OP_CONN;
             lcdQueueElem.conn.ctrl = LCD_CTRL_NONE;
             lcdQueueElem.conn.state = LCD_CONN_OFFLINE;
     }
     else {
-            lcdQueueElem.opKind    = LCD_OP_CONN;
+            lcdQueueElem.operation = LCD_OP_CONN;
             lcdQueueElem.conn.ctrl = LCD_CTRL_NONE;
             lcdQueueElem.conn.state = LCD_CONN_ONLINE;
     }
@@ -420,21 +420,23 @@ static uint8_t radio_data_checksum_calculate(const radioFrame *const data)
     return checksum;
 }
 
-void send_to_op_queue(const opQueueElem_t *opQueueNewElemPtr)
+void send_to_radio_queue(const opQueueElem_t *opQueueNewElemPtr)
 {
     static OS_ERR os_err;
     static opQueueElem_t *opQueueDestElemPtr = NULL;
 
-    opQueueDestElemPtr = &opQueueStruct.opQueueElem[opQueueStruct.queueElemNb];
-    if(++opQueueStruct.queueElemNb >= OP_QUEUE_SIZE) {
-        opQueueStruct.queueElemNb = 0;
-    }
+    if(opQueueNewElemPtr->operation != RADIO_OP_NONE) {
+        opQueueDestElemPtr = &opQueueStruct.opQueueElem[opQueueStruct.queueElemNb];
+        if(++opQueueStruct.queueElemNb >= OP_QUEUE_SIZE) {
+            opQueueStruct.queueElemNb = 0;
+        }
 
-    *opQueueDestElemPtr = *opQueueNewElemPtr;
-    OSQPost(&opQueue, opQueueDestElemPtr, sizeof(*opQueueDestElemPtr), OS_OPT_POST_FIFO + OS_OPT_POST_ALL, &os_err);
+        *opQueueDestElemPtr = *opQueueNewElemPtr;
+        OSQPost(&opQueue, opQueueDestElemPtr, sizeof(*opQueueDestElemPtr), OS_OPT_POST_FIFO + OS_OPT_POST_ALL, &os_err);
+    }
 }
 
-opQueueElem_t *receive_from_op_queue(void)
+opQueueElem_t *receive_from_radio_queue(void)
 {
     static OS_ERR os_err;
     static OS_MSG_SIZE msg_size;
@@ -448,7 +450,7 @@ opQueueElem_t *receive_from_op_queue(void)
     return opQueueElemPtr;
 }
 
-void flush_op_queue(void)
+void flush_radio_queue(void)
 {
     static OS_ERR os_err;
 

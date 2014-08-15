@@ -95,26 +95,26 @@ void AppTaskBTControl(void *p_arg)
                 opQueueElem.ctrl = RADIO_CTRL_BLUETOOTH;
                 switch(btOperation) {
                     case BT_OP_MV_FORWARD:
-                        opQueueElem.funct = RADIO_OP_DRIVE;
-                        opQueueElem.op    = RADIO_DRVOP_FORWARD;
+                        opQueueElem.operation = RADIO_OP_DRIVE;
+                        opQueueElem.opAction  = RADIO_DRVOP_FORWARD;
                         opQueueElem.val_0 = velocity;
                         opQueueElem.val_1 = velocity;
                         break;
                     case BT_OP_MV_BACKWARD:
-                        opQueueElem.funct = RADIO_OP_DRIVE;
-                        opQueueElem.op = RADIO_DRVOP_BACKWARD;
+                        opQueueElem.operation = RADIO_OP_DRIVE;
+                        opQueueElem.opAction  = RADIO_DRVOP_BACKWARD;
                         opQueueElem.val_0 = velocity;
                         opQueueElem.val_1 = velocity;
                         break;
                     case BT_OP_MV_LEFT:
-                        opQueueElem.funct = RADIO_OP_DRIVE;
-                        opQueueElem.op = RADIO_DRVOP_LEFT;
+                        opQueueElem.operation = RADIO_OP_DRIVE;
+                        opQueueElem.opAction  = RADIO_DRVOP_LEFT;
                         opQueueElem.val_0 = MAX_VELOCITY_VALUE;
                         opQueueElem.val_1 = 0;
                         break;
                     case BT_OP_MV_RIGHT:
-                        opQueueElem.funct = RADIO_OP_DRIVE;
-                        opQueueElem.op = RADIO_DRVOP_RIGHT;
+                        opQueueElem.operation = RADIO_OP_DRIVE;
+                        opQueueElem.opAction  = RADIO_DRVOP_RIGHT;
                         opQueueElem.val_0 = 0;
                         opQueueElem.val_1 = MAX_VELOCITY_VALUE;
                         break;
@@ -137,8 +137,8 @@ void AppTaskBTControl(void *p_arg)
                         bt_message_transfer_handler(velocityText);
                         break;
                     case BT_OP_LGT_LEFT:
-                        opQueueElem.funct = RADIO_OP_LIGHTING;
-                        opQueueElem.op = RADIO_LIGHTOP_LEFT;
+                        opQueueElem.operation = RADIO_OP_LIGHTING;
+                        opQueueElem.opAction  = RADIO_LIGHTOP_LEFT;
                         if(lightCurrentState.lightLeftCurrState == RADIO_LIGHTST_DISABLE) {
                             opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                             lightCurrentState.lightLeftCurrState = RADIO_LIGHTST_ENABLE;
@@ -149,8 +149,8 @@ void AppTaskBTControl(void *p_arg)
                         }
                         break;
                     case BT_OP_LGT_RIGHT:
-                        opQueueElem.funct = RADIO_OP_LIGHTING;
-                        opQueueElem.op = RADIO_LIGHTOP_RIGHT;
+                        opQueueElem.operation = RADIO_OP_LIGHTING;
+                        opQueueElem.opAction  = RADIO_LIGHTOP_RIGHT;
                         if(lightCurrentState.lightRightCurrState == RADIO_LIGHTST_DISABLE) {
                             opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                             lightCurrentState.lightRightCurrState = RADIO_LIGHTST_ENABLE;
@@ -161,8 +161,8 @@ void AppTaskBTControl(void *p_arg)
                         }
                         break;
                     case BT_OP_LGT_INNER:
-                        opQueueElem.funct = RADIO_OP_LIGHTING;
-                        opQueueElem.op = RADIO_LIGHTOP_INNER;
+                        opQueueElem.operation = RADIO_OP_LIGHTING;
+                        opQueueElem.opAction  = RADIO_LIGHTOP_INNER;
                         if(lightCurrentState.lightInnerCurrState == RADIO_LIGHTST_DISABLE) {
                             opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                             lightCurrentState.lightInnerCurrState = RADIO_LIGHTST_ENABLE;
@@ -173,8 +173,8 @@ void AppTaskBTControl(void *p_arg)
                         }
                         break;
                     case BT_OP_LGT_OUTER:
-                        opQueueElem.funct = RADIO_OP_LIGHTING;
-                        opQueueElem.op = RADIO_LIGHTOP_OUTER;
+                        opQueueElem.operation = RADIO_OP_LIGHTING;
+                        opQueueElem.opAction  = RADIO_LIGHTOP_OUTER;
                         if(lightCurrentState.lightOuterCurrState == RADIO_LIGHTST_DISABLE) {
                             opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                             lightCurrentState.lightOuterCurrState = RADIO_LIGHTST_ENABLE;
@@ -185,17 +185,15 @@ void AppTaskBTControl(void *p_arg)
                         }
                         break;
                     case BT_OP_SD_HORN:
-                        opQueueElem.funct = RADIO_OP_SOUND_SIG;
-                        opQueueElem.op = RADIO_SIGOP_ON;
+                        opQueueElem.operation = RADIO_OP_SOUND_SIG;
+                        opQueueElem.opAction  = RADIO_SIGOP_ON;
                         break;
                     default: {}
                 }
 
                 BTMessageStruct.BTBufferElemNb = 0;
 
-                if(opQueueElem.funct != RADIO_OP_UNDEF) {
-                    send_to_op_queue(&opQueueElem);
-                }
+                send_to_radio_queue(&opQueueElem);
             }
         }
         

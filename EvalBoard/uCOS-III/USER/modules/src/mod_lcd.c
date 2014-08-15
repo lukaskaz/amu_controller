@@ -200,7 +200,7 @@ void LCDDisplayData(lcdQueueElem_t *data, bool refresh)
 {
     char line[20+1];
 
-    switch(data->opKind) {
+    switch(data->operation) {
         case LCD_OP_MOVE:
             snprintf(line, 20, "Ctrll: %s", controllerTbl[data->move.ctrl]);
             LCDPutStr(line, 10, 60, MEDIUM, BLACK, WHITE);
@@ -248,16 +248,16 @@ void LCDClearDataFields(void)
 {
     lcdQueueElem_t data = {0};
 
-    data.opKind = LCD_OP_MOVE;
+    data.operation = LCD_OP_MOVE;
     LCDDisplayData(&data, 1);
     
-    data.opKind = LCD_OP_HORN;
+    data.operation = LCD_OP_HORN;
     LCDDisplayData(&data, 1);
     
-    data.opKind = LCD_OP_LIGHT;
+    data.operation = LCD_OP_LIGHT;
     LCDDisplayData(&data, 1);
     
-    data.opKind = LCD_OP_CONN;
+    data.operation = LCD_OP_CONN;
     LCDDisplayData(&data, 1);
 }
 
@@ -277,7 +277,7 @@ static LcdLightState_t *LCDLastLightingData(const lcdQueueElem_t *data)
 {
     static LcdLightState_t LcdLightStatuses[5] = {0};
 
-    if(data != NULL && data->opKind == LCD_OP_LIGHT) {
+    if(data != NULL && data->operation== LCD_OP_LIGHT) {
         LcdLightStatuses[data->light.type] = data->light.state;
     }
 
@@ -288,7 +288,7 @@ static LcdConnectionState_t LCDLastConnectionData(const lcdQueueElem_t *data)
 {
     static LcdConnectionState_t LcdConnectionStatus = LCD_CONN_OFFLINE;
 
-    if(data != NULL && data->opKind == LCD_OP_CONN) {
+    if(data != NULL && data->operation == LCD_OP_CONN) {
         LcdConnectionStatus = data->conn.state;
     }
 
@@ -313,7 +313,7 @@ void AppTaskLCDControl(void *p_arg)
         lcdQueueElemPtr = receive_from_lcd_queue();
         if(lcdQueueElemPtr != NULL) {
             if(scrSaverStarted == false) {
-                if(lcdQueueElemPtr->opKind == LCD_OP_CONN) {
+                if(lcdQueueElemPtr->operation == LCD_OP_CONN) {
                     if(connLockStarted == false) {
                         LCDDisplayData(lcdQueueElemPtr, 0);
                     }
@@ -337,7 +337,7 @@ void AppTaskLCDControl(void *p_arg)
                 }
 
             }
-            else if(scrSaverStarted == true && lcdQueueElemPtr->opKind != LCD_OP_CONN) {
+            else if(scrSaverStarted == true && lcdQueueElemPtr->operation != LCD_OP_CONN) {
                 scrSaverStarted = false;
 
                 OSTmrStart((OS_TMR *)&lcdRefreshTimeout, &os_err);
@@ -399,7 +399,7 @@ void AppTaskLCDControl(void *p_arg)
                         // no action defined
                     }
                     
-                    data.opKind = LCD_OP_CONN;
+                    data.operation = LCD_OP_CONN;
                     data.conn.state = state;
                     LCDDisplayData(&data, 0);
                 }
@@ -771,13 +771,15 @@ void send_to_lcd_queue(const lcdQueueElem_t *lcdQueueNewElemPtr)
     static OS_ERR os_err;
     static lcdQueueElem_t *lcdQueueDestElemPtr = NULL;
 
-    lcdQueueDestElemPtr = &lcdQueueStruct.lcdQueueElem[lcdQueueStruct.lcdQueueElemNb];
-    if(++lcdQueueStruct.lcdQueueElemNb >= LCD_QUEUE_SIZE) {
-        lcdQueueStruct.lcdQueueElemNb = 0;
-    }
+    if(lcdQueueNewElemPtr->operation != LCD_OP_NONE) {
+        lcdQueueDestElemPtr = &lcdQueueStruct.lcdQueueElem[lcdQueueStruct.lcdQueueElemNb];
+        if(++lcdQueueStruct.lcdQueueElemNb >= LCD_QUEUE_SIZE) {
+            lcdQueueStruct.lcdQueueElemNb = 0;
+        }
 
-    *lcdQueueDestElemPtr = *lcdQueueNewElemPtr;
-    OSQPost(&lcdQueue, lcdQueueDestElemPtr, sizeof(*lcdQueueDestElemPtr), OS_OPT_POST_FIFO + OS_OPT_POST_ALL, &os_err);
+        *lcdQueueDestElemPtr = *lcdQueueNewElemPtr;
+        OSQPost(&lcdQueue, lcdQueueDestElemPtr, sizeof(*lcdQueueDestElemPtr), OS_OPT_POST_FIFO + OS_OPT_POST_ALL, &os_err);
+    }
 }
 
 lcdQueueElem_t *receive_from_lcd_queue(void)

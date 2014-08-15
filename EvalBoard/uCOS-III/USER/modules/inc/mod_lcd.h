@@ -60,30 +60,30 @@ typedef enum {
 } LcdOperation_t;
 
 typedef union {
-    LcdOperation_t opKind;
+    LcdOperation_t operation;
 
     struct {
-        LcdOperation_t opKind;
+        LcdOperation_t operation;
         LcdControllers_t ctrl;
         LcdMoveDirection_t dir;
         uint8_t speed;
     } move;
 
     struct {
-        LcdOperation_t opKind;
+        LcdOperation_t operation;
         LcdControllers_t ctrl;
         LcdLightType_t type;
         LcdLightState_t state;
     } light;
 
     struct {
-        LcdOperation_t opKind;
+        LcdOperation_t operation;
         LcdControllers_t ctrl;
         LcdHornState_t state;
     } horn;
 
     struct {
-        LcdOperation_t opKind;
+        LcdOperation_t operation;
         LcdControllers_t ctrl;
         LcdConnectionState_t state;
     } conn;

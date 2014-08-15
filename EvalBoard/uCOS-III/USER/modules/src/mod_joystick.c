@@ -58,12 +58,12 @@ void AppTaskJoyControl(void *p_arg)
         if(vertMovementFactor < 45U) {
             uint8_t speedFwd = MAX_VELOCITY_VALUE - (100U * ADCConvertedValue[0] / HALF_ADC_RES_VALUE);
 
-            opQueueElem.funct = RADIO_OP_DRIVE;
-            opQueueElem.op    = RADIO_DRVOP_JOY_FORWARD;
+            opQueueElem.operation = RADIO_OP_DRIVE;
+            opQueueElem.opAction  = RADIO_DRVOP_JOY_FORWARD;
             opQueueElem.val_0 = speedFwd;
             opQueueElem.val_1 = speedFwd;
 
-            lcdQueueElem.opKind    = LCD_OP_MOVE;
+            lcdQueueElem.operation = LCD_OP_MOVE;
             lcdQueueElem.move.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.move.dir  = LCD_MV_FORWARD;
             lcdQueueElem.move.speed = speedFwd;
@@ -71,61 +71,61 @@ void AppTaskJoyControl(void *p_arg)
         else if(vertMovementFactor > 50U) {
             uint8_t speedBwd = (100U * ADCConvertedValue[0] / HALF_ADC_RES_VALUE) - MAX_VELOCITY_VALUE;
 
-            opQueueElem.funct = RADIO_OP_DRIVE;
-            opQueueElem.op    = RADIO_DRVOP_JOY_BACKWARD;
+            opQueueElem.operation = RADIO_OP_DRIVE;
+            opQueueElem.opAction  = RADIO_DRVOP_JOY_BACKWARD;
             opQueueElem.val_0 = speedBwd;
             opQueueElem.val_1 = speedBwd;
 
-            lcdQueueElem.opKind    = LCD_OP_MOVE;
+            lcdQueueElem.operation = LCD_OP_MOVE;
             lcdQueueElem.move.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.move.dir = LCD_MV_BACKWARD;
             lcdQueueElem.move.speed = speedBwd;
         }
 
         if(horiMovementFactor < 45U) {
-            if(opQueueElem.funct == RADIO_OP_UNDEF) {
-                opQueueElem.funct = RADIO_OP_DRIVE;
-                opQueueElem.op    = RADIO_DRVOP_JOY_RIGHT;
+            if(opQueueElem.operation == RADIO_OP_NONE) {
+                opQueueElem.operation = RADIO_OP_DRIVE;
+                opQueueElem.opAction  = RADIO_DRVOP_JOY_RIGHT;
             }
 
             opQueueElem.val_0 = 0;
             opQueueElem.val_1 = MAX_VELOCITY_VALUE;
 
-            lcdQueueElem.opKind    = LCD_OP_MOVE;
+            lcdQueueElem.operation = LCD_OP_MOVE;
             lcdQueueElem.move.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.move.dir = LCD_MV_RIGHT;
             lcdQueueElem.move.speed = MAX_VELOCITY_VALUE;
         }
-        else if(horiMovementFactor > 50U ) {
-            if(opQueueElem.funct == RADIO_OP_UNDEF) {
-                opQueueElem.funct = RADIO_OP_DRIVE;
-                opQueueElem.op    = RADIO_DRVOP_JOY_LEFT;
+        else if(horiMovementFactor > 50U) {
+            if(opQueueElem.operation == RADIO_OP_NONE) {
+                opQueueElem.operation = RADIO_OP_DRIVE;
+                opQueueElem.opAction  = RADIO_DRVOP_JOY_LEFT;
             }
 
             opQueueElem.val_0 = MAX_VELOCITY_VALUE;
             opQueueElem.val_1 = 0;
 
-            lcdQueueElem.opKind    = LCD_OP_MOVE;
+            lcdQueueElem.operation = LCD_OP_MOVE;
             lcdQueueElem.move.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.move.dir = LCD_MV_LEFT;
             lcdQueueElem.move.speed = MAX_VELOCITY_VALUE;
         }
 
         if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_3) == Bit_RESET) {
-            opQueueElem.funct = RADIO_OP_SOUND_SIG;
-            opQueueElem.op = RADIO_SIGOP_ON;
+            opQueueElem.operation = RADIO_OP_SOUND_SIG;
+            opQueueElem.opAction  = RADIO_SIGOP_ON;
 
-            lcdQueueElem.opKind    = LCD_OP_HORN;
+            lcdQueueElem.operation = LCD_OP_HORN;
             lcdQueueElem.horn.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.horn.state = LCD_HRN_ON;
         }
         else if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET) {
-            while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
-            }
+            do {
+                OSTimeDlyHMSM(0, 0, 0, 25, OS_OPT_TIME_PERIODIC, &os_err);
+            }while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_5) == Bit_RESET);
 
-            opQueueElem.funct = RADIO_OP_LIGHTING;
-            opQueueElem.op = RADIO_LIGHTOP_LEFT;
+            opQueueElem.operation = RADIO_OP_LIGHTING;
+            opQueueElem.opAction  = RADIO_LIGHTOP_LEFT;
             if(lightCurrentState.lightLeftCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                 lightCurrentState.lightLeftCurrState = RADIO_LIGHTST_ENABLE;
@@ -135,18 +135,18 @@ void AppTaskJoyControl(void *p_arg)
                 lightCurrentState.lightLeftCurrState = RADIO_LIGHTST_DISABLE;
             }
 
-            lcdQueueElem.opKind     = LCD_OP_LIGHT;
+            lcdQueueElem.operation  = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.light.type = LCD_LIG_LEFT;
-            lcdQueueElem.light.state = opQueueElem.val_0;
+            lcdQueueElem.light.state = (LcdLightState_t)opQueueElem.val_0;
         }
         else if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET) {
-            while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
-            }
+            do {
+                OSTimeDlyHMSM(0, 0, 0, 25, OS_OPT_TIME_PERIODIC, &os_err);
+            }while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7) == Bit_RESET);
 
-            opQueueElem.funct = RADIO_OP_LIGHTING;
-            opQueueElem.op = RADIO_LIGHTOP_RIGHT;
+            opQueueElem.operation = RADIO_OP_LIGHTING;
+            opQueueElem.opAction  = RADIO_LIGHTOP_RIGHT;
             if(lightCurrentState.lightRightCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                 lightCurrentState.lightRightCurrState = RADIO_LIGHTST_ENABLE;
@@ -156,18 +156,18 @@ void AppTaskJoyControl(void *p_arg)
                 lightCurrentState.lightRightCurrState = RADIO_LIGHTST_DISABLE;
             }
             
-            lcdQueueElem.opKind     = LCD_OP_LIGHT;
+            lcdQueueElem.operation  = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.light.type = LCD_LIG_RIGHT;
-            lcdQueueElem.light.state = opQueueElem.val_0;
+            lcdQueueElem.light.state = (LcdLightState_t)opQueueElem.val_0;
         }
         else if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET) {
-            while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
-            }
+            do {
+                OSTimeDlyHMSM(0, 0, 0, 25, OS_OPT_TIME_PERIODIC, &os_err);
+            }while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_4) == Bit_RESET);
 
-            opQueueElem.funct = RADIO_OP_LIGHTING;
-            opQueueElem.op = RADIO_LIGHTOP_INNER;
+            opQueueElem.operation = RADIO_OP_LIGHTING;
+            opQueueElem.opAction  = RADIO_LIGHTOP_INNER;
             if(lightCurrentState.lightInnerCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                 lightCurrentState.lightInnerCurrState = RADIO_LIGHTST_ENABLE;
@@ -177,18 +177,18 @@ void AppTaskJoyControl(void *p_arg)
                 lightCurrentState.lightInnerCurrState = RADIO_LIGHTST_DISABLE;
             }
 
-            lcdQueueElem.opKind     = LCD_OP_LIGHT;
+            lcdQueueElem.operation  = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.light.type = LCD_LIG_INNER;
-            lcdQueueElem.light.state = opQueueElem.val_0;
+            lcdQueueElem.light.state = (LcdLightState_t)opQueueElem.val_0;
         }
         else if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET) {
-            while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET) {
-                OSTimeDlyHMSM(0, 0, 0, 50, OS_OPT_TIME_PERIODIC, &os_err);
-            }
-            
-            opQueueElem.funct = RADIO_OP_LIGHTING;
-            opQueueElem.op = RADIO_LIGHTOP_OUTER;
+            do {
+                OSTimeDlyHMSM(0, 0, 0, 25, OS_OPT_TIME_PERIODIC, &os_err);
+            }while(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_5) == Bit_RESET);
+
+            opQueueElem.operation = RADIO_OP_LIGHTING;
+            opQueueElem.opAction  = RADIO_LIGHTOP_OUTER;
             if(lightCurrentState.lightOuterCurrState == RADIO_LIGHTST_DISABLE) {
                 opQueueElem.val_0 = RADIO_LIGHTST_ENABLE;
                 lightCurrentState.lightOuterCurrState = RADIO_LIGHTST_ENABLE;
@@ -198,21 +198,17 @@ void AppTaskJoyControl(void *p_arg)
                 lightCurrentState.lightOuterCurrState = RADIO_LIGHTST_DISABLE;
             }
 
-            lcdQueueElem.opKind     = LCD_OP_LIGHT;
+            lcdQueueElem.operation  = LCD_OP_LIGHT;
             lcdQueueElem.light.ctrl = LCD_CTRL_JOYSTICK;
             lcdQueueElem.light.type = LCD_LIG_OUTER;
-            lcdQueueElem.light.state = opQueueElem.val_0;
+            lcdQueueElem.light.state = (LcdLightState_t)opQueueElem.val_0;
         }
         else {
             // no action defined
         }
 
-        if(opQueueElem.funct != RADIO_OP_UNDEF) {
-            send_to_op_queue(&opQueueElem);
-        }
-        if(lcdQueueElem.opKind != LCD_OP_NONE) {
-            send_to_lcd_queue(&lcdQueueElem);
-        }
+        send_to_radio_queue(&opQueueElem);
+        send_to_lcd_queue(&lcdQueueElem);
 
         //printf("testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest ");
         OSTimeDlyHMSM(0, 0, 0, 20, OS_OPT_TIME_PERIODIC, &os_err);
